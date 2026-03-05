@@ -31,6 +31,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
+	protocol.WriteMessage(conn, protocol.Message{
+		From: "",
+		Message: os.Args[1],
+	})
 	go handleReading(conn)
 	inputScanner := bufio.NewScanner(os.Stdin)
 	for inputScanner.Scan() {
