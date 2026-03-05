@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 	"net"
-	// "bufio"
+	"bufio"
+	"github.com/sevaaadev/sayhi/internal/scan"
 )
 
 var connList []net.Conn
@@ -12,10 +13,11 @@ func handleConn(conn net.Conn) {
 	addr := conn.RemoteAddr()
 	log.Printf("connected to %s\n", addr)
 	conn.Write(append(append([]byte{0, 2}, []byte("BB")...), append([]byte{0, 5}, []byte("hallo")...)...))
-	// scanner := bufio.NewScanner(conn)
-	// for scanner.Scan() {
-	// 	log.Printf("%s says %s\n", addr, scanner.Text())
-	// }
+	scanner := bufio.NewScanner(conn)
+	scanner.Split(scan.ScanMessage)
+	for scanner.Scan() {
+		log.Printf("%s says %s\n", addr, scanner.Text())
+	}
 	conn.Close()
 	log.Printf("disconnected from %s\n", addr.String())
 }
