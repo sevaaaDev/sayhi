@@ -2,12 +2,11 @@ package main
 
 import (
 	"log"
-	// "fmt"
+	"slices"
 	"net"
 	"strings"
 	"bufio"
-	"github.com/sevaaadev/sayhi/internal/scan"
-	"encoding/binary"
+	"github.com/sevaaadev/sayhi/internal/protocol"
 )
 
 type Conns []net.Conn
@@ -25,28 +24,41 @@ var connList Conns
 func handleConn(conn net.Conn) {
 	addr := conn.RemoteAddr()
 	log.Printf("connected to %s\n", addr)
-	conn.Write(append(append([]byte{0, 2}, []byte("BB")...), append([]byte{0, 5}, []byte("hallo")...)...))
 	scanner := bufio.NewScanner(conn)
-	scanner.Split(scan.ScanMessage)
+	scanner.Split(protocol.ScanMessage)
 	for scanner.Scan() {
-		msg := scanner.Text()
-		log.Printf("%s says %s\n", addr, msg)
-		if msg == ":list" {
-			connListStr := connList.String()
-			binary.Write(conn, binary.BigEndian, uint16(len(connListStr)))
-			conn.Write([]byte(connListStr))
+		msgStruct, err := protocol.BytesToMessage(scanner.Bytes())
+		if err != nil {
+			log.Printf("WARNING: %s's message cant be decoded: %s", conn.RemoteAddr(), err)
+			continue
+		}
+		log.Printf("%s says %s\n", addr, msgStruct.Message)
+		if msgStruct.Message == ":list" {
+			response := protocol.Message{
+				From: "server",
+				Message: connList.String(),
+			}
+			protocol.WriteMessage(conn, response)
 			continue
 		}
 		for _, v := range connList {
 			if v != conn {
-				msg = conn.RemoteAddr().String() + ": "  + msg
-				binary.Write(v, binary.BigEndian, uint16(len(msg)))
-				v.Write([]byte(msg))
+				relayMsg := protocol.Message{
+					From: conn.RemoteAddr().String(),
+					Message: msgStruct.Message,
+				}
+				protocol.WriteMessage(v, relayMsg)
 			}
 		}
 
 	}
 	conn.Close()
+	connList = slices.DeleteFunc(connList, func(c net.Conn) bool {
+		if c == conn {
+			return true
+		}
+		return false
+	})
 	log.Printf("disconnected from %s\n", addr.String())
 }
 

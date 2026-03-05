@@ -1,4 +1,4 @@
-package scan
+package protocol
 
 import (
 	"encoding/binary"

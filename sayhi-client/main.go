@@ -2,20 +2,23 @@ package main
 
 import (
 	"io"
-	"encoding/binary"
 	"os"
 	"net"
 	"fmt"
-	"github.com/sevaaadev/sayhi/internal/scan"
+	"github.com/sevaaadev/sayhi/internal/protocol"
 	"bufio"
 )
 
 func handleReading(conn io.Reader) {
 	scanner := bufio.NewScanner(conn)
-	scanner.Split(scan.ScanMessage)
+	scanner.Split(protocol.ScanMessage)
 	for scanner.Scan() {
-		msg := scanner.Text()
-		fmt.Printf("LOG: the msg is %s\n", msg)
+		msg, err := protocol.BytesToMessage(scanner.Bytes())
+		if err != nil {
+			fmt.Printf("WARNING: could not decode message: %s\n", err)
+			continue
+		}
+		fmt.Printf("%s: %s\n", msg.From, msg.Message)
 	}
 	fmt.Printf("LOG: the server closes the connection\n")
 	os.Exit(2)
@@ -35,7 +38,10 @@ func main() {
 		if input == ":q" {
 			break
 		}
-		binary.Write(conn, binary.BigEndian, uint16(len(input)))
-		conn.Write(inputScanner.Bytes())
+		msg := protocol.Message{
+			From: "",
+			Message: input,
+		}
+		protocol.WriteMessage(conn, msg)
 	}
 }
