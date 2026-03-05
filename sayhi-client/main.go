@@ -30,7 +30,6 @@ func main() {
 	defer conn.Close()
 	go handleReading(conn)
 	inputScanner := bufio.NewScanner(os.Stdin)
-	conn.Write(append([]byte{0, 5}, []byte("hello")...))
 	for inputScanner.Scan() {
 		input := inputScanner.Text()
 		if input == ":q" {
