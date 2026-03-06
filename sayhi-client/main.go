@@ -18,7 +18,7 @@ func handleReading(conn io.Reader) {
 			fmt.Printf("WARNING: could not decode message: %s\n", err)
 			continue
 		}
-		fmt.Printf("%s: %s\n", msg.From, msg.Message)
+		fmt.Printf("%s: %s\n", msg.From, msg.Data)
 	}
 	fmt.Printf("LOG: the server closes the connection\n")
 	os.Exit(2)
@@ -31,11 +31,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	protocol.WriteMessage(conn, protocol.Message{
-		From: "",
-		Message: os.Args[1],
-	})
 	go handleReading(conn)
+	loginMsg := protocol.Message{
+		Type: protocol.LoginMessage,
+		Data: os.Args[1],
+	}
+	protocol.WriteMessage(conn, loginMsg)
+
 	inputScanner := bufio.NewScanner(os.Stdin)
 	for inputScanner.Scan() {
 		input := inputScanner.Text()
@@ -44,7 +46,7 @@ func main() {
 		}
 		msg := protocol.Message{
 			From: "",
-			Message: input,
+			Data: input,
 		}
 		protocol.WriteMessage(conn, msg)
 	}

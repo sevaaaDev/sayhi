@@ -6,9 +6,18 @@ import (
 	"encoding/binary"
 )
 
+type MessageType int
+const (
+	UserMessage MessageType = iota
+	ErrorMessage
+	LogoutMessage
+	LoginMessage
+)
+
 type Message struct {
+	Type MessageType 
 	From string
-	Message string
+	Data string
 }
 
 func MessageToBytes(msg Message) ([]byte, error) {
