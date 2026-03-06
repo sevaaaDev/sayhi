@@ -25,27 +25,36 @@ func (db UsersOnline) String() string{
 type UsersOnline map[string]*User
 
 type State struct {
-	db UsersOnline 
+	db UsersOnline
+	rooms map[string][]*User
 }
 
 func relay(data State, out chan protocol.Message) {
-	 for {
-		 msg := <-out
-		 switch msg.Type {
-		 case protocol.LogoutMessage:
-			 user := data.db[msg.From]
-			 user.Conn.Close()
-			 delete(data.db, msg.From)
+	for {
+		msg := <-out
+		switch msg.Type {
+		case protocol.JoinRoomMessage:
+			_, ok := data.rooms[msg.Data]
+			if !ok {
+				data.rooms[msg.Data] = []*User{}
+			}
+			user := data.db[msg.From]
+			data.rooms[msg.Data] = append(data.rooms[msg.Data], user)
+			log.Printf("%s joined room %s\n", msg.From, msg.Data)
+		case protocol.LogoutMessage:
+			user := data.db[msg.From]
+			user.Conn.Close()
+			delete(data.db, msg.From)
 			log.Printf("disconnected from %s\n", msg.From)
-		 case protocol.UserMessage:
-			 for k, v := range data.db {
-				if k != msg.From {
+		case protocol.UserMessage:
+			for _, v := range data.rooms[msg.Room] {
+				if v.Name != msg.From {
 					protocol.WriteMessage(v.Conn, msg)
 				}
-			 }
-			 log.Printf("broadcasting message from %s", msg.From)
-		 }
-	 }
+			}
+			log.Printf("broadcasting message from %s", msg.From)
+		}
+	}
 }
 
 func Auth(conn net.Conn, data State) (*User, error) {
@@ -80,13 +89,14 @@ func handleConn(user *User, out chan protocol.Message) {
 			log.Printf("WARNING: %s's message cant be decoded: %s", user.Name, err)
 			continue
 		}
-		log.Printf("%s says %s\n", user.Name, msgStruct.Data)
-		relayMsg := protocol.Message{
-			Type: protocol.UserMessage,
-			From: user.Name,
-		        Data: msgStruct.Data,
+		if msgStruct.Type == protocol.JoinRoomMessage {
+			msgStruct.From = user.Name
+			out <- msgStruct
+			continue
 		}
-		out <- relayMsg
+		log.Printf("%s says %s\n", user.Name, msgStruct.Data)
+		msgStruct.From = user.Name
+		out <- msgStruct
 	}
 	logoutMsg := protocol.Message{
 		Type: protocol.LogoutMessage,
@@ -106,6 +116,7 @@ func main() {
 	log.Printf("listening for connection on port :%s\n", PORT)
 	data := State{
 		db: UsersOnline{},
+		rooms: map[string][]*User{},
 	}
 	out := make(chan protocol.Message)
 	go relay(data, out)

@@ -12,11 +12,13 @@ const (
 	ErrorMessage
 	LogoutMessage
 	LoginMessage
+	JoinRoomMessage
 )
 
 type Message struct {
 	Type MessageType 
 	From string
+	Room string
 	Data string
 }
 

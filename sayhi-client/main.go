@@ -18,6 +18,9 @@ func handleReading(conn io.Reader) {
 			fmt.Printf("WARNING: could not decode message: %s\n", err)
 			continue
 		}
+		if msg.Type == protocol.ErrorMessage {
+			msg.From = "error"
+		}
 		fmt.Printf("%s: %s\n", msg.From, msg.Data)
 	}
 	fmt.Printf("LOG: the server closes the connection\n")
@@ -37,6 +40,11 @@ func main() {
 		Data: os.Args[1],
 	}
 	protocol.WriteMessage(conn, loginMsg)
+	roomMsg := protocol.Message{
+		Type: protocol.JoinRoomMessage,
+		Data: os.Args[2],
+	}
+	protocol.WriteMessage(conn, roomMsg)
 
 	inputScanner := bufio.NewScanner(os.Stdin)
 	for inputScanner.Scan() {
@@ -45,7 +53,9 @@ func main() {
 			break
 		}
 		msg := protocol.Message{
+			Type: protocol.UserMessage,
 			From: "",
+			Room: os.Args[2],
 			Data: input,
 		}
 		protocol.WriteMessage(conn, msg)
